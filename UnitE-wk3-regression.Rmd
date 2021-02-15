@@ -1,0 +1,286 @@
+---
+title: 'Unit E Statistics: Regression'
+author: 'Lecturer: Philip Leftwich, Module: UEA BIO 5023Y'
+output:
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+    highlight: pygments
+    css: css/lab.css
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(skimr)
+library(rstatix)
+library(equatiomatic)
+library(patchwork)
+```
+
+We previously demonstrated the use of normal least squares using `lm()` to perform analyses with categorical independent variables (also known as factors) on a dependent variable. *Remember when people discuss ANOVAs and t-tests these are just special cases of linear models.*
+
+
+But what about when our independent variable has continuous values? Because of the general nature of linear models we can apply the same approach. This sub-species of linear model is also referred to as regression. 
+
+Here rather than testing for *differences* we are looking at a *relationship*. 
+
+In today's dataset we want to estimate the parameters that define the relationship between the density of wood and the hardness of the timber samples produced from it.
+
+Wood density is measured in pounds per cubic foot and hardness is measured using the 'Janka' scale. The Janka scale measures the force (in pounds) required to push a ball bearing into a wood sample. 
+
+<details><summary>**Q. Which is our predictor/independent variable and which is our response/dependent variable**</summary>
+
+- Predictor: Wood density
+
+- Response: Timber hardness
+
+</details>
+
+# Dataset
+
+Import your data, and run a few quick checks to convince yourself it has imported correctly, with no gaps/errors. 
+
+```{r, message=FALSE}
+wood_density <- read_csv("Data/wood_density.csv")
+
+```
+
+# Drawing a linear model
+
+We can produce a graph of a linear model analysis with `ggplot()` adding the `geom_smooth()` function plots a smoothed curve with a 95% CI. We have to specify the argument {method=lm} otherwise it will default to *loess* a non-linear method of fitting a line. 
+
+The interval reflects our confidence in the overall regression line. While the line of best fit is found *exactly* in the same way as the least squares method we applied to Darwin's maize data. 
+
+The line drawn is the straight line which produces the smallest sum of squared differences. 
+
+Notice that the CI is wider at the ends than it is in the middle. This is simply because if we imagine this line has the ability to wiggle around the data points, we can imagine it has more freedom to move at the ends (hence wider CI) than the centre where it passes through a pivot point. 
+
+```{r, message=FALSE}
+wood_density %>% ggplot(aes(x=Density,
+                            y=Hardness))+
+  geom_point()+
+  geom_smooth(method="lm")
+```
+
+## Straight line equation
+Remember our linear regression fit can be written as this simple equation $y = mx + c$ 
+
+Where:
+
+- $x$ is the independent variable
+- $y$ is the predicted value of the dependent variable
+- $m$ is the slope
+- $c$ is the constant - the value of $y$ when $m = 0$
+
+You might also see this written as $y = \beta0 +\beta1x$
+but it is the same equation
+
+There will also be *error* $\epsilon$ in our model (also referred to as unexplained residual variation). This is represented as 1 - $R^2$. 
+
+So the full model fit and residuals is $y = \beta0 +\beta1x+\epsilon$
+
+With our slope defined we can make predictions about the change in hardness for every unit change in wood density. 
+
+```{r}
+density_model <- lm(Hardness~Density, data=wood_density)
+density_model
+```
+
+This output should look familiar to you, as it is identical to when we looked at our models on the darwin data last week. We have our intercept and a slope, and we can look at that in a simple equation again.
+
+$$
+\begin{aligned}
+\operatorname{Hardness} &= -1160.5+57.51(\operatorname{Density}) 
+\end{aligned}
+$$
+
+
+## Understanding the intercept
+
+So what are the differences here between this example & our categorical data from last week? If you recall there the value of the intercept was the mean of one of our categories, and the slope was the difference between them. 
+
+Here there are no categorical means at which to set the intercept, instead the value of the intercept is the timber hardness when wood density (x) = zero. 
+
+<details><summary>**Q. What is unusual about setting our intercept value at -1160? Think about what these numbers mean in the real world!**</summary>
+
+There are two odd things here - both of which come from extrapolating back to when the density of wood is zero. 
+
+- A Wood density of zero should obviously be seen as an impossible value. I think this would be some sort of intangible ghost wood. 
+
+- The second odd things is that wood with a density of zero would produce timber with a ?negative hardness? and at this point my head starts to hurt! 
+
+
+None of this really matters, because what we care about is the slope - and if we look at values of $x$ in a sensible range we get sensible predictions for $y$. 
+
+We *could* (but we won't) fix our intercept value through a process known as *centering*. This is where every density value is subtracted from the average density value, this would move our intercept away from zero to sit on the average density value instead (a lot more like the way set our intercept for difference tests). This doesn't affect the slope of our line, or our ability to test for significance or make predictions, all it would do is make the intercept value we report a little more sensible.
+
+</details>
+
+
+
+From our linear equation we can make predictions, multiply the value of density by the slope and add this to the value of the intercept to predict any given value of timber hardness. 
+
+
+
+
+# Making predictions
+
+
+## TASK. For our lowest wood density value of **24.7**, calculate the predicted hardness manually using the straight line equations and the values of the intercept and slope.
+
+```{r, eval=FALSE}
+(24.7*57.507)+-1160.5
+```
+We can also use the coefficients of the model directly - which prevents rounding errors. Run this code and note the slight difference in the predicted value:
+
+```{r, eval= FALSE}
+coef(density_model)[1]+
+  coef(density_model)[2]*
+  24.7
+```
+
+## Add predictions to our datapoints
+
+It can be very useful to be able to add the predictions from our dataset, so that we can compare our model's predicted values to our realised values.
+We can do this with the function `fitted()` on our model to pull out the models estimates of the dependent variable based on each value of the independent value. 
+
+
+```{r, EVAL=FALSE}
+fitted(density_model)
+```
+
+
+# Residuals
+
+We can now also calculate the difference between these predictions or *model-fitted values* and the *observed values* - these values are know as the *residuals* 
+
+For Example:
+```{r, class.source = "fold-show"}
+484-259.9152
+427-265.6658
+413-409.4325
+
+```
+
+## TASK You can use the `mutate()` function to build a pipe which will add the models predictions and residuals back onto our original dataframe.
+
+```{r}
+wood_density_augmented <- wood_density %>% 
+  mutate(predictions=fitted(density_model)) %>% 
+  mutate(residuals=Hardness-predictions)
+
+```
+
+
+
+# Checking the overall explanatory power of a model
+
+For each observation in our dataframe we now have:
+
+- the observed Timber Hardness
+
+- our predicted Hardness value
+
+- the difference between these two values
+
+We can plot each of these in turn.
+
+```{r}
+p1 <- wood_density_augmented %>% 
+  ggplot(aes(x=Density, y=Hardness))+
+  geom_line()+
+  ggtitle("Full Data")
+
+p2 <- wood_density_augmented %>% 
+  ggplot(aes(x=Density, y=predictions))+
+  geom_line()+
+  ggtitle("Linear trend")
+
+p3 <- wood_density_augmented %>% 
+  ggplot(aes(x=Density, y=residuals))+
+  geom_hline(yintercept=0, colour="white", size=5)+
+  geom_line()+
+  ggtitle("Remaining pattern")
+
+p1+p2+p3
+
+```
+
+A model which explains our data perfectly would produce a perfect prediction fit, and the residual line would be a perfect flat line. Any patterns in our *residuals* are what is **left-over** after taking away the pattern explained by the linear model. 
+
+Visualising residuals can be **very** useful for understanding the fit of our model. Slopes, patterns or trends here can indicate whether our model has done a good job. 
+
+We will build on this later when we explore **Model assumptions**. 
+
+
+# Tidy your models with (a) broom
+
+Broom is package within the tidyverse that does a lot of the model fit and residual work for you!!!!
+
+
+## Glance
+
+Constructs a concise one-row summary of the model. This typically contains values such as R^2, adjusted R^2, your F values, degrees of freedom and P
+
+```{r, eval=FALSE}
+broom::glance(density_model)
+```
+
+## Tidy
+
+Constructs a small tibble with most of the models summary data in it. Very similar to our `summary()` output.
+
+```{r, eval=FALSE}
+broom::tidy(density_model, conf.int=TRUE)
+```
+
+## Augment
+
+Takes computations from our model fit and adds them back onto our original dataframe. 
+
+.fitted  = predictions
+
+.resid = residuals
+
+.upper is the 95% confidence interval upper value for our fit line
+
+.lower is the 95% confidence interval lower value for our fit line
+
+```{r, eval=FALSE}
+broom::augment(density_model, wood_density, interval="confidence") 
+```
+
+## Confidence in the slope of our regression
+
+We will develop our understanding of what confidence intervals are really about next time. 
+
+But **essentially** they are our confidence in our estimation of that regression line. If you check out our code for plotting our .lower and.upper values as geom_lines(), you should see they match up perfectly with our shaded areas produced by geom_smooth()
+
+```{r, message=FALSE}
+plot1 <- broom::augment(density_model, wood_density, interval="confidence") %>% ggplot(aes(x=Density, y=Hardness))+geom_line(aes(x=Density, y=.fitted))+geom_line(aes(x=Density, y=.upper), linetype="dashed")+geom_line(aes(x=Density, y=.lower), linetype="dashed")+geom_point() +ggtitle("Manually fitting linear model \n and confidence intervals")
+
+plot2 <- wood_density %>% ggplot(aes(x=Density, y=Hardness))+geom_smooth(method=lm)+geom_point()+ggtitle("Geom smooth method to plotting \n a linear model")
+
+plot1+plot2
+```
+
+
+# TASK: Write-up
+
+Imagine you are writing up this analysis as a result for a lab report. In one sentence write-up your observation and the analysis result which supports it. **After** you have had a go, check your write-up against mine.
+
+<details><summary>**Check here for my attempt**</summary>
+
+Wood density is an excellent predictor of timber hardness. On average for every pound per cubic foot increase in the density of wood, we see a 57.5 point increase in the Janka "hardness scale" (*F*~1,34~= 637, *P* <0.001, *R^2* = 0.94).
+
+</details>
+
+
+# END
+
+
+Next we will build on our ability to write and interpret estimates & how to check model assumptions. 
