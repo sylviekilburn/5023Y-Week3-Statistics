@@ -219,8 +219,11 @@ We will build on this later when we explore **Model assumptions**.
 
 # Tidy your models with (a) broom
 
-Broom is package within the tidyverse that does a lot of the model fit and residual work for you!!!!
+Broom is a package within the tidyverse that does a lot of the model fit and residual work for you!!!!
 
+Check it out here (https://broom.tidymodels.org/)
+
+And for now let's play with three of its main functions:
 
 ## Glance
 
@@ -242,7 +245,7 @@ broom::tidy(density_model, conf.int=TRUE)
 
 Takes computations from our model fit and adds them back onto our original dataframe. 
 
-.fitted  = predictions
+.fitted  = predictions of the model
 
 .resid = residuals
 
